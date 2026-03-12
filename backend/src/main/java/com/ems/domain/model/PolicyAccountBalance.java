@@ -16,7 +16,7 @@ import java.util.UUID;
 public class PolicyAccountBalance {
 
     @Id
-    @Column(name = "policy_account_id")
+    @Column(name = "policy_account_id", updatable = false)
     private UUID policyAccountId;
 
     /** Confirmed balance from insurer (source of truth). Stored in smallest currency unit. */

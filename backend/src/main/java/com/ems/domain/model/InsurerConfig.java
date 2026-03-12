@@ -1,7 +1,13 @@
 package com.ems.domain.model;
 
 import com.ems.domain.enums.ExecutionMode;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import lombok.*;
 
 import java.time.OffsetDateTime;
@@ -17,7 +23,6 @@ import java.util.UUID;
 public class InsurerConfig {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "insurer_config_id")
     private UUID insurerConfigId;
 

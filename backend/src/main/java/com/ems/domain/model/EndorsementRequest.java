@@ -77,7 +77,7 @@ public class EndorsementRequest {
     private String sourceRef;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "payload", columnDefinition = "jsonb")
+    @Column(name = "payload")
     private Map<String, Object> payload;
 
     @Column(name = "created_at", nullable = false, updatable = false)

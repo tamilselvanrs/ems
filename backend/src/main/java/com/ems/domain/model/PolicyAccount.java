@@ -1,6 +1,10 @@
 package com.ems.domain.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -17,7 +21,6 @@ import java.util.UUID;
 public class PolicyAccount {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "policy_account_id")
     private UUID policyAccountId;
 
