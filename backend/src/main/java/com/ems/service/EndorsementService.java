@@ -89,8 +89,8 @@ public class EndorsementService {
             .currentStatus(EndorsementStatus.DRAFT)
             .build();
 
-        // 6. Validate balance for ADD — reserve if sufficient
-        PolicyAccountBalance balance = balanceRepository.findById(policyAccountId)
+        // 6. Acquire exclusive lock on balance row, then validate and reserve
+        PolicyAccountBalance balance = balanceRepository.findWithLockById(policyAccountId)
             .orElseThrow(() -> new ResourceNotFoundException("PolicyAccountBalance", policyAccountId));
 
         long estimatedPremium = request.getEstimatedPremium();

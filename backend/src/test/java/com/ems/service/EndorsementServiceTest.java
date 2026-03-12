@@ -76,7 +76,7 @@ class EndorsementServiceTest {
             .thenReturn(Optional.empty());
         when(policyAccountRepository.findById(policyAccountId)).thenReturn(Optional.of(policyAccount));
         when(insurerConfigRepository.findByInsurerId(insurerId)).thenReturn(Optional.of(insurerConfig));
-        when(balanceRepository.findById(policyAccountId)).thenReturn(Optional.of(balance));
+        when(balanceRepository.findWithLockById(policyAccountId)).thenReturn(Optional.of(balance));
         when(endorsementRequestRepository.save(any())).thenReturn(savedRequest);
         when(balanceRepository.save(any())).thenReturn(balance);
         when(endorsementMapper.toResponse(savedRequest)).thenReturn(expectedResponse);
@@ -124,7 +124,7 @@ class EndorsementServiceTest {
             .thenReturn(Optional.empty());
         when(policyAccountRepository.findById(policyAccountId)).thenReturn(Optional.of(policyAccount));
         when(insurerConfigRepository.findByInsurerId(insurerId)).thenReturn(Optional.of(insurerConfig));
-        when(balanceRepository.findById(policyAccountId)).thenReturn(Optional.of(balance));
+        when(balanceRepository.findWithLockById(policyAccountId)).thenReturn(Optional.of(balance));
 
         // Act + Assert
         assertThatThrownBy(() -> endorsementService.addEndorsement(policyAccountId, validRequest))

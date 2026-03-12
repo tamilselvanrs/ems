@@ -19,6 +19,12 @@ public class PolicyAccountBalance {
     @Column(name = "policy_account_id", updatable = false)
     private UUID policyAccountId;
 
+    /** Optimistic lock — secondary guard behind the pessimistic write lock. */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
+
     /** Confirmed balance from insurer (source of truth). Stored in smallest currency unit. */
     @Column(name = "confirmed_ea_balance", nullable = false)
     @Builder.Default
