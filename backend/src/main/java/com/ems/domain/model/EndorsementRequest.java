@@ -76,6 +76,9 @@ public class EndorsementRequest {
     @Column(name = "source_ref")
     private String sourceRef;
 
+    @Column(name = "estimated_premium")
+    private Long estimatedPremium;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload")
     private Map<String, Object> payload;

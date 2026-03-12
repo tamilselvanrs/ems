@@ -8,6 +8,7 @@ import com.ems.dto.request.AddEndorsementRequest;
 import com.ems.dto.response.EndorsementResponse;
 import com.ems.exception.EffectiveDateValidationException;
 import com.ems.exception.InsufficientBalanceException;
+import com.ems.exception.PricingRuleNotFoundException;
 import com.ems.exception.ResourceNotFoundException;
 import com.ems.mapper.EndorsementMapper;
 import com.ems.repository.EndorsementRequestRepository;
@@ -44,6 +45,7 @@ class EndorsementServiceTest {
     @Mock private AuditService auditService;
     @Mock private SubmissionRouter submissionRouter;
     @Mock private EndorsementMapper endorsementMapper;
+    @Mock private PricingService pricingService;
 
     @InjectMocks
     private EndorsementService endorsementService;
@@ -77,6 +79,7 @@ class EndorsementServiceTest {
         when(policyAccountRepository.findById(policyAccountId)).thenReturn(Optional.of(policyAccount));
         when(insurerConfigRepository.findByInsurerId(insurerId)).thenReturn(Optional.of(insurerConfig));
         when(balanceRepository.findWithLockById(policyAccountId)).thenReturn(Optional.of(balance));
+        when(pricingService.derivePremium(any(), any(), any(), any(), any(), any())).thenReturn(5_000L);
         when(endorsementRequestRepository.save(any())).thenReturn(savedRequest);
         when(balanceRepository.save(any())).thenReturn(balance);
         when(endorsementMapper.toResponse(savedRequest)).thenReturn(expectedResponse);
@@ -125,6 +128,7 @@ class EndorsementServiceTest {
         when(policyAccountRepository.findById(policyAccountId)).thenReturn(Optional.of(policyAccount));
         when(insurerConfigRepository.findByInsurerId(insurerId)).thenReturn(Optional.of(insurerConfig));
         when(balanceRepository.findWithLockById(policyAccountId)).thenReturn(Optional.of(balance));
+        when(pricingService.derivePremium(any(), any(), any(), any(), any(), any())).thenReturn(5_000L);
 
         // Act + Assert
         assertThatThrownBy(() -> endorsementService.addEndorsement(policyAccountId, validRequest))
@@ -149,6 +153,29 @@ class EndorsementServiceTest {
         // Act + Assert
         assertThatThrownBy(() -> endorsementService.addEndorsement(policyAccountId, validRequest))
             .isInstanceOf(EffectiveDateValidationException.class);
+    }
+
+    @Test
+    void addEndorsement_givenNoPricingRule_throwsPricingRuleNotFoundException() {
+        // Arrange
+        var policyAccount = mockPolicyAccount();
+        var insurerConfig = mockInsurerConfig(30);
+        var balance = mockSufficientBalance(100_000L);
+
+        when(endorsementRequestRepository.findByPolicyAccountIdAndIdempotencyKey(any(), any()))
+            .thenReturn(Optional.empty());
+        when(policyAccountRepository.findById(policyAccountId)).thenReturn(Optional.of(policyAccount));
+        when(insurerConfigRepository.findByInsurerId(insurerId)).thenReturn(Optional.of(insurerConfig));
+        when(balanceRepository.findWithLockById(policyAccountId)).thenReturn(Optional.of(balance));
+        when(pricingService.derivePremium(any(), any(), any(), any(), any(), any()))
+            .thenThrow(new PricingRuleNotFoundException(policyAccountId, "ADD", "SELF", 30, "MALE"));
+
+        // Act + Assert
+        assertThatThrownBy(() -> endorsementService.addEndorsement(policyAccountId, validRequest))
+            .isInstanceOf(PricingRuleNotFoundException.class);
+
+        verify(endorsementRequestRepository, never()).save(any());
+        verify(ledgerService, never()).writeEntry(any(), any(), any(), anyLong(), any(), any());
     }
 
     @Test
@@ -181,7 +208,6 @@ class EndorsementServiceTest {
         req.setEffectiveDate(LocalDate.now());
         req.setRequestedByActor("EMPLOYER");
         req.setRequestedById("employer-id-001");
-        req.setEstimatedPremium(5000L);
         req.setMember(member);
         return req;
     }

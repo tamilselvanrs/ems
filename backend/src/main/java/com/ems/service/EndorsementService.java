@@ -37,6 +37,7 @@ public class EndorsementService {
     private final AuditService auditService;
     private final SubmissionRouter submissionRouter;
     private final EndorsementMapper endorsementMapper;
+    private final PricingService pricingService;
 
     /**
      * Creates an ADD endorsement request.
@@ -93,7 +94,15 @@ public class EndorsementService {
         PolicyAccountBalance balance = balanceRepository.findWithLockById(policyAccountId)
             .orElseThrow(() -> new ResourceNotFoundException("PolicyAccountBalance", policyAccountId));
 
-        long estimatedPremium = request.getEstimatedPremium();
+        long estimatedPremium = pricingService.derivePremium(
+            policyAccountId,
+            RequestType.ADD,
+            request.getMember().getMemberType(),
+            request.getMember().getDob(),
+            request.getMember().getGender(),
+            request.getEffectiveDate()
+        );
+        endorsementRequest.setEstimatedPremium(estimatedPremium);
         balance.reserve(estimatedPremium); // throws InsufficientBalanceException if insufficient
 
         // 7. Transition to VALIDATED

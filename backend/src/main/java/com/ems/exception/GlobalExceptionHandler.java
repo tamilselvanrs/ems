@@ -46,6 +46,14 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(PricingRuleNotFoundException.class)
+    public ProblemDetail handlePricingRuleNotFound(PricingRuleNotFoundException ex) {
+        log.warn("Pricing rule not found: {}", ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setType(URI.create("/errors/pricing-rule-not-found"));
+        return pd;
+    }
+
     @ExceptionHandler(DuplicateEndorsementException.class)
     public ProblemDetail handleDuplicate(DuplicateEndorsementException ex) {
         log.warn("Duplicate endorsement: {}", ex.getMessage());

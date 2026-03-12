@@ -28,11 +28,6 @@ public class AddEndorsementRequest {
     @JsonProperty("requested_by_id")
     private String requestedById;
 
-    @NotNull(message = "estimated_premium is required")
-    @Positive(message = "estimated_premium must be positive")
-    @JsonProperty("estimated_premium")
-    private Long estimatedPremium;
-
     @NotNull(message = "member is required")
     @Valid
     private MemberDetails member;

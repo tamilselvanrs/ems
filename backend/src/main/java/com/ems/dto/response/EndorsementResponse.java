@@ -42,6 +42,9 @@ public class EndorsementResponse {
     @JsonProperty("last_error_message")
     private String lastErrorMessage;
 
+    @JsonProperty("estimated_premium")
+    private Long estimatedPremium;
+
     @JsonProperty("idempotency_key")
     private String idempotencyKey;
 
