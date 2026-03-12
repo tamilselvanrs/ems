@@ -1,0 +1,32 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ems-postgres
+    environment:
+      POSTGRES_DB: ems
+      POSTGRES_USER: ems
+      POSTGRES_PASSWORD: ems_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - ems-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ems"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Insurer stub — simulates both realtime and batch insurer APIs
+  insurer-stub:
+    image: wiremock/wiremock:3.3.1
+    container_name: ems-insurer-stub
+    ports:
+      - "9090:8080"
+    volumes:
+      - ./scripts/wiremock:/home/wiremock
+    command: --global-response-templating --verbose
+
+volumes:
+  ems-postgres-data:
