@@ -224,7 +224,7 @@ export function AddEndorsementForm({ policyAccountId, onSuccess }: Props) {
         {mutation.isError && (
           <div className="rounded-lg bg-red-50 border border-red-200 p-4">
             <p className="text-sm text-red-700">
-              {(mutation.error as any)?.response?.data?.detail || 'Failed to submit endorsement. Please try again.'}
+              {(mutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to submit endorsement. Please try again.'}
             </p>
           </div>
         )}
