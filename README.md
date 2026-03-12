@@ -2,7 +2,7 @@
 
 > Group insurance endorsement lifecycle management — from HR admin action to insurer confirmation.
 
-[![CI](https://github.com/your-org/ems/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/ems/actions)
+[![CI](https://github.com/tamilselvanrs/ems/actions/workflows/ci.yml/badge.svg)](https://github.com/tamilselvanrs/ems/actions)
 
 ---
 
