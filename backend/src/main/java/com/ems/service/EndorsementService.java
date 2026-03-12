@@ -100,7 +100,7 @@ public class EndorsementService {
         endorsementRequest.transitionTo(EndorsementStatus.VALIDATED);
 
         // 8. Persist in one transaction
-        endorsementRequestRepository.save(endorsementRequest);
+        endorsementRequest = endorsementRequestRepository.save(endorsementRequest);
         balanceRepository.save(balance);
 
         // 9. Write RESERVE ledger entry (same transaction)
