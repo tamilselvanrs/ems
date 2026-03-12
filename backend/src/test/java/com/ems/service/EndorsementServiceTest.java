@@ -5,7 +5,10 @@ import com.ems.domain.enums.ExecutionMode;
 import com.ems.domain.model.EndorsementRequest;
 import com.ems.domain.model.PolicyAccountBalance;
 import com.ems.dto.request.AddEndorsementRequest;
+import com.ems.dto.request.PremiumPreviewRequest;
 import com.ems.dto.response.EndorsementResponse;
+import com.ems.dto.response.PolicyAccountBalanceResponse;
+import com.ems.dto.response.PremiumPreviewResponse;
 import com.ems.exception.EffectiveDateValidationException;
 import com.ems.exception.InsufficientBalanceException;
 import com.ems.exception.PricingRuleNotFoundException;
@@ -25,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -191,6 +195,69 @@ class EndorsementServiceTest {
             .hasMessageContaining("PolicyAccount");
     }
 
+    @Test
+    void getPolicyAccountBalance_givenExistingBalance_returnsBalanceResponse() {
+        // Arrange
+        PolicyAccountBalance balance = PolicyAccountBalance.builder()
+            .policyAccountId(policyAccountId)
+            .confirmedEaBalance(1_000_000L)
+            .reservedExposure(250_000L)
+            .availableBalance(750_000L)
+            .pendingCredit(10_000L)
+            .pendingDebit(20_000L)
+            .driftAmount(0L)
+            .updatedAt(OffsetDateTime.now())
+            .build();
+
+        when(balanceRepository.findById(policyAccountId)).thenReturn(Optional.of(balance));
+
+        // Act
+        PolicyAccountBalanceResponse response = endorsementService.getPolicyAccountBalance(policyAccountId);
+
+        // Assert
+        assertThat(response.getPolicyAccountId()).isEqualTo(policyAccountId);
+        assertThat(response.getAvailableBalance()).isEqualTo(750_000L);
+        assertThat(response.getConfirmedEaBalance()).isEqualTo(1_000_000L);
+    }
+
+    @Test
+    void previewAddEndorsement_givenValidInput_returnsEstimatedPremiumAndAvailableBalance() {
+        // Arrange
+        var policyAccount = mockPolicyAccount();
+        var insurerConfig = mockInsurerConfig(30);
+        var balance = mockSufficientBalance(900_000L);
+        var request = buildPremiumPreviewRequest();
+
+        when(policyAccountRepository.findById(policyAccountId)).thenReturn(Optional.of(policyAccount));
+        when(insurerConfigRepository.findByInsurerId(insurerId)).thenReturn(Optional.of(insurerConfig));
+        when(balanceRepository.findById(policyAccountId)).thenReturn(Optional.of(balance));
+        when(pricingService.derivePremium(any(), any(), any(), any(), any(), any())).thenReturn(250_000L);
+
+        // Act
+        PremiumPreviewResponse response = endorsementService.previewAddEndorsement(policyAccountId, request);
+
+        // Assert
+        assertThat(response.getEstimatedPremium()).isEqualTo(250_000L);
+        assertThat(response.getAvailableBalance()).isEqualTo(900_000L);
+        assertThat(response.getCurrencyCode()).isEqualTo("INR");
+    }
+
+    @Test
+    void previewAddEndorsement_givenInvalidEffectiveDate_throwsEffectiveDateValidationException() {
+        // Arrange
+        var policyAccount = mockPolicyAccount();
+        var insurerConfig = mockInsurerConfig(30);
+        var request = buildPremiumPreviewRequest();
+        request.setEffectiveDate(LocalDate.now().minusDays(45));
+
+        when(policyAccountRepository.findById(policyAccountId)).thenReturn(Optional.of(policyAccount));
+        when(insurerConfigRepository.findByInsurerId(insurerId)).thenReturn(Optional.of(insurerConfig));
+
+        // Act + Assert
+        assertThatThrownBy(() -> endorsementService.previewAddEndorsement(policyAccountId, request))
+            .isInstanceOf(EffectiveDateValidationException.class);
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────
@@ -210,6 +277,18 @@ class EndorsementServiceTest {
         req.setRequestedById("employer-id-001");
         req.setMember(member);
         return req;
+    }
+
+    private PremiumPreviewRequest buildPremiumPreviewRequest() {
+        var member = new PremiumPreviewRequest.MemberDetails();
+        member.setDob(LocalDate.of(1992, 6, 20));
+        member.setMemberType("SELF");
+        member.setGender("MALE");
+
+        var request = new PremiumPreviewRequest();
+        request.setEffectiveDate(LocalDate.now());
+        request.setMember(member);
+        return request;
     }
 
     private com.ems.domain.model.PolicyAccount mockPolicyAccount() {

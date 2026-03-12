@@ -2,7 +2,9 @@ package com.ems.controller;
 
 import com.ems.domain.enums.EndorsementStatus;
 import com.ems.dto.request.AddEndorsementRequest;
+import com.ems.dto.request.PremiumPreviewRequest;
 import com.ems.dto.response.EndorsementResponse;
+import com.ems.dto.response.PremiumPreviewResponse;
 import com.ems.service.EndorsementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,5 +55,14 @@ public class EndorsementController {
         @RequestParam(required = false) EndorsementStatus status
     ) {
         return ResponseEntity.ok(endorsementService.listEndorsements(policyAccountId, status));
+    }
+
+    @PostMapping("/preview")
+    @Operation(summary = "Preview premium and available balance for ADD endorsement")
+    public ResponseEntity<PremiumPreviewResponse> previewAddEndorsement(
+        @PathVariable UUID policyAccountId,
+        @Valid @RequestBody PremiumPreviewRequest request
+    ) {
+        return ResponseEntity.ok(endorsementService.previewAddEndorsement(policyAccountId, request));
     }
 }

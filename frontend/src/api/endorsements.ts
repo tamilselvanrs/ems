@@ -1,6 +1,13 @@
 // src/api/endorsements.ts
 import axios from 'axios';
-import type { AddEndorsementRequest, EndorsementResponse, EndorsementStatus } from '../types/endorsement';
+import type {
+  AddEndorsementRequest,
+  EndorsementResponse,
+  EndorsementStatus,
+  PolicyAccountBalance,
+  PremiumPreviewRequest,
+  PremiumPreviewResponse,
+} from '../types/endorsement';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
@@ -32,11 +39,22 @@ export const endorsementApi = {
       .get<EndorsementResponse[]>(`/api/v1/policy-accounts/${policyAccountId}/endorsements`, { params })
       .then((r) => r.data);
   },
+
+  preview: (
+    policyAccountId: string,
+    request: PremiumPreviewRequest
+  ): Promise<PremiumPreviewResponse> =>
+    apiClient
+      .post<PremiumPreviewResponse>(
+        `/api/v1/policy-accounts/${policyAccountId}/endorsements/preview`,
+        request
+      )
+      .then((r) => r.data),
 };
 
 export const balanceApi = {
-  get: (policyAccountId: string) =>
+  get: (policyAccountId: string): Promise<PolicyAccountBalance> =>
     apiClient
-      .get(`/api/v1/policy-accounts/${policyAccountId}/balance`)
+      .get<PolicyAccountBalance>(`/api/v1/policy-accounts/${policyAccountId}/balance`)
       .then((r) => r.data),
 };

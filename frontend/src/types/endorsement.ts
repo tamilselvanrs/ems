@@ -31,7 +31,6 @@ export interface AddEndorsementRequest {
   effective_date: string; // ISO date string
   requested_by_actor: 'EMPLOYER' | 'EMPLOYEE' | 'SYSTEM';
   requested_by_id: string;
-  estimated_premium: number;
   member: MemberDetails;
 }
 
@@ -45,10 +44,26 @@ export interface EndorsementResponse {
   retry_count: number;
   last_error_code?: string;
   last_error_message?: string;
+  estimated_premium?: number | null;
   idempotency_key: string;
   created_at: string;
   updated_at: string;
   is_existing: boolean;
+}
+
+export interface PremiumPreviewRequest {
+  effective_date: string; // ISO date string
+  member: {
+    dob: string;
+    member_type: MemberType;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  };
+}
+
+export interface PremiumPreviewResponse {
+  estimated_premium: number;
+  available_balance: number;
+  currency_code: string;
 }
 
 export interface PolicyAccountBalance {

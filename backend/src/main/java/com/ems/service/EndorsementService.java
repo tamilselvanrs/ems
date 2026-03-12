@@ -6,7 +6,10 @@ import com.ems.domain.enums.RequestType;
 import com.ems.domain.model.EndorsementRequest;
 import com.ems.domain.model.PolicyAccountBalance;
 import com.ems.dto.request.AddEndorsementRequest;
+import com.ems.dto.request.PremiumPreviewRequest;
 import com.ems.dto.response.EndorsementResponse;
+import com.ems.dto.response.PolicyAccountBalanceResponse;
+import com.ems.dto.response.PremiumPreviewResponse;
 import com.ems.exception.EffectiveDateValidationException;
 import com.ems.exception.ResourceNotFoundException;
 import com.ems.mapper.EndorsementMapper;
@@ -156,6 +159,54 @@ public class EndorsementService {
             ? endorsementRequestRepository.findByPolicyAccountIdAndCurrentStatus(policyAccountId, status)
             : endorsementRequestRepository.findByPolicyAccountId(policyAccountId);
         return requests.stream().map(endorsementMapper::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PolicyAccountBalanceResponse getPolicyAccountBalance(UUID policyAccountId) {
+        var balance = balanceRepository.findById(policyAccountId)
+            .orElseThrow(() -> new ResourceNotFoundException("PolicyAccountBalance", policyAccountId));
+
+        return PolicyAccountBalanceResponse.builder()
+            .policyAccountId(balance.getPolicyAccountId())
+            .confirmedEaBalance(balance.getConfirmedEaBalance())
+            .reservedExposure(balance.getReservedExposure())
+            .availableBalance(balance.getAvailableBalance())
+            .pendingCredit(balance.getPendingCredit())
+            .pendingDebit(balance.getPendingDebit())
+            .lastInsurerBalanceSyncAt(balance.getLastInsurerBalanceSyncAt())
+            .lastReconciledAt(balance.getLastReconciledAt())
+            .driftAmount(balance.getDriftAmount())
+            .updatedAt(balance.getUpdatedAt())
+            .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PremiumPreviewResponse previewAddEndorsement(UUID policyAccountId, PremiumPreviewRequest request) {
+        var policyAccount = policyAccountRepository.findById(policyAccountId)
+            .orElseThrow(() -> new ResourceNotFoundException("PolicyAccount", policyAccountId));
+
+        var insurerConfig = insurerConfigRepository.findByInsurerId(policyAccount.getInsurerId())
+            .orElseThrow(() -> new ResourceNotFoundException("InsurerConfig", policyAccount.getInsurerId()));
+
+        validateEffectiveDate(request.getEffectiveDate(), insurerConfig.getBackdateWindowDays());
+
+        var balance = balanceRepository.findById(policyAccountId)
+            .orElseThrow(() -> new ResourceNotFoundException("PolicyAccountBalance", policyAccountId));
+
+        long estimatedPremium = pricingService.derivePremium(
+            policyAccountId,
+            RequestType.ADD,
+            request.getMember().getMemberType(),
+            request.getMember().getDob(),
+            request.getMember().getGender(),
+            request.getEffectiveDate()
+        );
+
+        return PremiumPreviewResponse.builder()
+            .estimatedPremium(estimatedPremium)
+            .availableBalance(balance.getAvailableBalance())
+            .currencyCode(policyAccount.getCurrencyCode())
+            .build();
     }
 
     // ─────────────────────────────────────────────────────────────

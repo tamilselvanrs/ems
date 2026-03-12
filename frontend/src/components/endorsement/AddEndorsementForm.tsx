@@ -2,8 +2,8 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { endorsementApi } from '../../api/endorsements';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { balanceApi, endorsementApi } from '../../api/endorsements';
 import type { AddEndorsementRequest } from '../../types/endorsement';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -22,9 +22,6 @@ const addEndorsementSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
     .refine((d) => new Date(d) <= new Date(), { message: 'Effective date cannot be in the future' }),
-  estimated_premium: z
-    .number({ invalid_type_error: 'Premium must be a number' })
-    .positive('Premium must be positive'),
   member: memberSchema,
 });
 
@@ -37,6 +34,17 @@ interface Props {
 
 export function AddEndorsementForm({ policyAccountId, onSuccess }: Props) {
   const queryClient = useQueryClient();
+  const formatMoney = (amountInMinorUnits: number | null | undefined, currencyCode = 'INR') => {
+    if (amountInMinorUnits == null) {
+      return '—';
+    }
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amountInMinorUnits / 100);
+  };
 
   const {
     register,
@@ -53,6 +61,37 @@ export function AddEndorsementForm({ policyAccountId, onSuccess }: Props) {
   });
 
   const memberType = watch('member.member_type');
+  const memberDob = watch('member.dob');
+  const memberGender = watch('member.gender');
+  const effectiveDate = watch('effective_date');
+
+  const balanceQuery = useQuery({
+    queryKey: ['balance', policyAccountId],
+    queryFn: () => balanceApi.get(policyAccountId),
+  });
+
+  const premiumPreviewEnabled = Boolean(policyAccountId && effectiveDate && memberDob && memberType);
+  const premiumPreviewQuery = useQuery({
+    queryKey: ['premium-preview', policyAccountId, effectiveDate, memberDob, memberType, memberGender ?? ''],
+    enabled: premiumPreviewEnabled,
+    queryFn: () =>
+      endorsementApi.preview(policyAccountId, {
+        effective_date: effectiveDate,
+        member: {
+          dob: memberDob,
+          member_type: memberType,
+          gender: memberGender || undefined,
+        },
+      }),
+    retry: false,
+  });
+
+  const availableBalance = balanceQuery.data?.available_balance;
+  const estimatedPremium = premiumPreviewQuery.data?.estimated_premium;
+  const hasInsufficientBalance =
+    typeof availableBalance === 'number' &&
+    typeof estimatedPremium === 'number' &&
+    availableBalance < estimatedPremium;
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
@@ -75,6 +114,46 @@ export function AddEndorsementForm({ policyAccountId, onSuccess }: Props) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-gray-900 mb-6">Add Member to Policy</h2>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Available Balance</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            {formatMoney(balanceQuery.data?.available_balance)}
+          </p>
+          {balanceQuery.isError && (
+            <p className="mt-1 text-xs text-red-600">Unable to load available balance.</p>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Estimated Premium</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            {premiumPreviewQuery.isSuccess
+              ? formatMoney(
+                  premiumPreviewQuery.data.estimated_premium,
+                  premiumPreviewQuery.data.currency_code
+                )
+              : '—'}
+          </p>
+          {!premiumPreviewEnabled && (
+            <p className="mt-1 text-xs text-gray-500">Fill effective date, DOB, and member type.</p>
+          )}
+          {premiumPreviewQuery.isError && (
+            <p className="mt-1 text-xs text-red-600">
+              {(premiumPreviewQuery.error as { response?: { data?: { detail?: string } } })?.response?.data
+                ?.detail || 'No matching pricing rule for current details.'}
+            </p>
+          )}
+        </div>
+      </div>
+      {hasInsufficientBalance && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm text-amber-800">
+            Estimated premium exceeds available balance. Submission may fail with insufficient balance.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-5">
 
@@ -188,7 +267,7 @@ export function AddEndorsementForm({ policyAccountId, onSuccess }: Props) {
         <fieldset className="space-y-4 pt-4 border-t border-gray-100">
           <legend className="text-sm font-medium text-gray-700 mb-3">Coverage Details</legend>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Effective Date <span className="text-red-500">*</span>
@@ -202,22 +281,10 @@ export function AddEndorsementForm({ policyAccountId, onSuccess }: Props) {
                 <p className="mt-1 text-xs text-red-600">{errors.effective_date.message}</p>
               )}
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estimated Premium (₹) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                {...register('estimated_premium', { valueAsNumber: true })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="5000"
-              />
-              {errors.estimated_premium && (
-                <p className="mt-1 text-xs text-red-600">{errors.estimated_premium.message}</p>
-              )}
-            </div>
           </div>
+          <p className="text-xs text-gray-500">
+            Estimated premium above is derived from active pricing rules at the selected effective date.
+          </p>
         </fieldset>
 
         {/* Error banner */}
