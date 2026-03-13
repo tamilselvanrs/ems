@@ -15,7 +15,10 @@ import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(name = "endorsement_request")
+@Table(name = "endorsement_request",
+       uniqueConstraints = @UniqueConstraint(
+           name = "uk_endorsement_policy_idempotency",
+           columnNames = {"policy_account_id", "idempotency_key"}))
 @Getter
 @Setter
 @NoArgsConstructor
